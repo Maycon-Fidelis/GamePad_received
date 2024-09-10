@@ -90,30 +90,55 @@ async def handle_client(websocket, path):
         await websocket.close(code=4000)
         return
 
+    # Gera um UUID para o cliente
     uuid_str = str(uuid.uuid4())
     print(f"New connection: UUID: {uuid_str}")
 
+    # Cria um novo gamepad para o cliente
     connections[uuid_str] = websocket
     gamepad = vg.VX360Gamepad()
     gamepads[uuid_str] = gamepad
 
-    users[uuid_str] = {
-        'username': f"User {uuid_str}",
-        'state': {},
-        'buttonHistory': []
-    }
-
-    device_indices[uuid_str] = len(device_indices) + 1
-
-    add_device_to_gui(uuid_str)
-
+    # Recebe a primeira mensagem, que será o nome do cliente
     try:
+        name_message = await websocket.recv()
+        name_data = json.loads(name_message)
+
+        # Verifica se a mensagem contém um nome
+        if 'username' in name_data:
+            username = name_data['username']
+
+            if username in [user['username'] for user in users.values()]:
+                await websocket.send(json.dumps({"error": "Username alredy exist"}))
+                await  websocket.close(code=4001)
+                return
+
+        else:
+            username = f"User {uuid_str}"  # Define um nome padrão se o nome não for enviado
+
+        # Associa o UUID ao nome do usuário
+        users[uuid_str] = {
+            'username': username,
+            'state': {},
+            'buttonHistory': []
+        }
+
+        device_indices[uuid_str] = len(device_indices) + 1
+
+        # Adiciona o dispositivo na interface com o nome do usuário
+        add_device_to_gui(uuid_str, username)
+
+        print(f"User {username} connected with UUID: {uuid_str}")
+
+        # Escuta e processa outras mensagens do cliente
         async for message in websocket:
             await handle_message(message, uuid_str)
+
     finally:
         handle_close(uuid_str)
         print(f"Connection closed for UUID: {uuid_str}")
         remove_device_from_gui(uuid_str)
+
 
 def handle_close(uuid):
     if uuid in connections:
@@ -198,11 +223,12 @@ def remove_device_from_gui(device_name):
     
     update_device_count()
 
-def add_device_to_gui(device_name):
+def add_device_to_gui(device_name, user_name):
     device_frame = ttk.Frame(right_frame, name=device_name)
     device_frame.grid(sticky="w", padx=10, pady=5)
 
-    device_label = ttk.Label(device_frame, text=device_name, bootstyle="success", font=("Helvetica", 14))
+    # Aqui usamos o nome do usuário em vez do UUID
+    device_label = ttk.Label(device_frame, text=user_name, bootstyle="success", font=("Helvetica", 14))
     device_label.grid(row=0, column=0, padx=10, pady=5)
 
     remove_button = ttk.Button(device_frame, text="Remover", command=lambda: remove_device_from_gui(device_name))
@@ -213,6 +239,7 @@ def add_device_to_gui(device_name):
     remove_button.configure(style="my.TButton")
 
     update_device_count()
+
 
 root = ttk.Window(themename="darkly")
 root.title("Gerenciador de Conexões")
