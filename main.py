@@ -91,7 +91,6 @@ async def handle_client(websocket, path):
         return
 
 
-
     try:
         name_message = await websocket.recv()
         name_data = json.loads(name_message)
@@ -143,6 +142,8 @@ def handle_close(uuid):
         del users[uuid]
     if uuid in gamepads:
         del gamepads[uuid]
+    if uuid in device_indices:
+        del device_indices[uuid]
     
     reindex_devices()
 
@@ -203,7 +204,7 @@ async def disconnect_device(uuid):
         await websocket.close()
     
     handle_close(uuid)
-
+    
     remove_device_from_gui(uuid)
 
 def update_device_count():
