@@ -90,21 +90,12 @@ async def handle_client(websocket, path):
         await websocket.close(code=4000)
         return
 
-    # Gera um UUID para o cliente
-    uuid_str = str(uuid.uuid4())
-    print(f"New connection: UUID: {uuid_str}")
 
-    # Cria um novo gamepad para o cliente
-    connections[uuid_str] = websocket
-    gamepad = vg.VX360Gamepad()
-    gamepads[uuid_str] = gamepad
 
-    # Recebe a primeira mensagem, que será o nome do cliente
     try:
         name_message = await websocket.recv()
         name_data = json.loads(name_message)
 
-        # Verifica se a mensagem contém um nome
         if 'username' in name_data:
             username = name_data['username']
 
@@ -114,9 +105,16 @@ async def handle_client(websocket, path):
                 return
 
         else:
-            username = f"User {uuid_str}"  # Define um nome padrão se o nome não for enviado
+            username = f"User {uuid_str}"
 
-        # Associa o UUID ao nome do usuário
+        uuid_str = str(uuid.uuid4())
+        print(f"New connection: UUID: {uuid_str}")
+
+        connections[uuid_str] = websocket
+
+        gamepad = vg.VX360Gamepad()
+        gamepads[uuid_str] = gamepad
+        
         users[uuid_str] = {
             'username': username,
             'state': {},
@@ -125,12 +123,10 @@ async def handle_client(websocket, path):
 
         device_indices[uuid_str] = len(device_indices) + 1
 
-        # Adiciona o dispositivo na interface com o nome do usuário
         add_device_to_gui(uuid_str, username)
 
         print(f"User {username} connected with UUID: {uuid_str}")
 
-        # Escuta e processa outras mensagens do cliente
         async for message in websocket:
             await handle_message(message, uuid_str)
 
