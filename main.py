@@ -225,11 +225,11 @@ def add_device_to_gui(device_name, user_name):
     device_frame.grid(sticky="w", padx=10, pady=5)
 
     # Aqui usamos o nome do usuário em vez do UUID
-    device_label = ttk.Label(device_frame, text=user_name, bootstyle="success", font=("Helvetica", 14))
+    device_label = ttk.Label(device_frame, text=user_name, bootstyle="success", font=("Helvetica", 14), width=20)
     device_label.grid(row=0, column=0, padx=10, pady=5)
 
-    remove_button = ttk.Button(device_frame, text="Remover", command=lambda: remove_device_from_gui(device_name))
-    remove_button.grid(row=0, column=1, padx=10, pady=5)
+    remove_button = ttk.Button(device_frame, text="Remover", command=lambda: remove_device_from_gui(device_name), width=15)
+    remove_button.grid(row=0, column=1, padx=(70,0), pady=5)
 
     style = ttk.Style()
     style.configure("my.TButton", font=("Helvetica", 12))
