@@ -159,18 +159,26 @@ def update_ip_port_label(ip, port):
 
 
 async def main_websocket():
+    global ip_address
     port = 8082
     while True:
         try:
             server = await websockets.serve(handle_client, "0.0.0.0", port)
             ip_address = get_local_ip_address()
             print(f"WebSocket server is running at ws://{ip_address}:{port}")
+            
+            # Atualize o QR code com o IP e porta
+            qr_img = generate_qr_code(ip_address, port)
+            qr_label.config(image=qr_img)
+            qr_label.image = qr_img  # Necessário para manter a referência
+            
             update_ip_port_label(ip_address, port)
             break
         except OSError:
             port += 1
 
     await server.wait_closed()
+
 
 def get_local_ip_address():
     interfaces = socket.getaddrinfo(socket.gethostname(), None)
@@ -182,9 +190,10 @@ def get_local_ip_address():
 def start_websocket_server():
     asyncio.run(main_websocket())
 
-def generate_qr_code(data):
+def generate_qr_code(ip, port):
+    url = f"ws://{ip}:{port}"
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(data)
+    qr.add_data(url)
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
     img = img.resize((250, 250))
@@ -246,7 +255,7 @@ left_frame = ttk.Frame(root, padding=10)
 left_frame.grid(row=0, column=0, sticky="ns")
 
 qr_code_data = "http://example.com"
-qr_img = generate_qr_code(qr_code_data)
+qr_img = generate_qr_code(ip_address, port)
 qr_label = ttk.Label(left_frame, image=qr_img)
 qr_label.grid(row=0, column=0, pady=10)
 
