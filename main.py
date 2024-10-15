@@ -10,6 +10,7 @@ from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 import qrcode
 import threading
+import webbrowser
 
 connections = {}
 users = {}
@@ -41,48 +42,43 @@ button_map = {
 }
 
 async def handle_message(message, uuid):
-    parsed_message = json.loads(message)  # Decodificar a mensagem JSON
+    parsed_message = json.loads(message)
     user = users[uuid]
     gamepad = gamepads[uuid]
 
-    # Verificar o tipo de mensagem para distinguir entre controle de botões e joystick
     if parsed_message.get('type') == 'control':
-        # Processar eventos de controle de botões
         button_event = parsed_message
-        user['buttonHistory'].append(button_event)  # Armazenar histórico de botões
+        user['buttonHistory'].append(button_event)
 
         button = button_event.get('button')
         state = button_event.get('state')
 
-        # Mapeamento de ações de botões (press/release)
         button_actions = {
             'press': lambda btn: gamepad.press_button(button=button_map[btn]),
             'release': lambda btn: gamepad.release_button(button=button_map[btn])
         }
 
-        # Verificar se o botão está no mapeamento e executar a ação correspondente
         if button in button_map and state in button_actions:
             button_actions[state](button)
-        # Processar gatilhos analógicos (LT e RT)
+
         elif button == 'LT':
             gamepad.left_trigger(value=255 if state == 'press' else 0)
         elif button == 'RT':
             gamepad.right_trigger(value=255 if state == 'press' else 0)
 
-    # Verificar se a mensagem é do tipo 'joystick'
+
     elif parsed_message.get('type') == 'joystick':
-        # Processar eventos de controle de joystick
+
         x_value = parsed_message.get('x', 0)
         y_value = parsed_message.get('y', 0)
         joystick_id = parsed_message.get('id')
 
-        # Verificar qual joystick está sendo controlado e aplicar os valores
+
         if joystick_id == 'joystick1':
             gamepad.left_joystick(x_value=x_value, y_value=y_value)
         elif joystick_id == 'joystick2':
             gamepad.right_joystick(x_value=x_value, y_value=y_value)
 
-    # Atualizar o estado do gamepad após cada evento
     gamepad.update()
 
 
@@ -170,10 +166,9 @@ async def main_websocket():
             ip_address = get_local_ip_address()
             print(f"WebSocket server is running at ws://{ip_address}:{port}")
             
-            # Atualize o QR code com o IP e porta
             qr_img = generate_qr_code(ip_address, port)
             qr_label.config(image=qr_img)
-            qr_label.image = qr_img  # Necessário para manter a referência
+            qr_label.image = qr_img
             
             update_ip_port_label(ip_address, port)
             break
@@ -193,6 +188,67 @@ def get_local_ip_address():
 def start_websocket_server():
     asyncio.run(main_websocket())
 
+translations = {
+    'en': {
+        'about_title': "About",
+        'app_info': "Connection Manager\nDeveloped by [Your Name]\nVersion 1.0",
+        'github': "GitHub: https://github.com/your-user",
+        'project': "Project: https://your-project.com",
+        'license': "Licensed under MIT",
+        'used_libraries': "Libraries used:",
+        'libraries': [
+            "• asyncio (asynchronous IO management)",
+            "• websockets (WebSocket server)",
+            "• json (JSON data serialization)",
+            "• vgamepad (virtual gamepad control)",
+            "• tkinter (GUI interface)",
+            "• ttkbootstrap (styles for tkinter)",
+            "• PIL (image manipulation)",
+            "• qrcode (QR code generation)"
+        ],
+        'language_button': "Change Language",
+        'en': "English",
+        'pt': "Portuguese",
+        'text_help': "If you want, you can manually enter\n the port and IP values\n by clicking the button below",
+        'toggle_button_show': "Show IP and Port",
+        'toggle_button_hide': "Hide IP and Port",
+        'device_count': "0/8 devices connected",
+        'active_connections': "Active Connections",
+        'new_feature_1': "Feature Description 1",
+        'new_feature_2': "Feature Description 2",
+    },
+    'pt': {
+        'about_title': "Sobre",
+        'app_info': "Gerenciador de Conexões\nDesenvolvido por [Seu Nome]\nVersão 1.0",
+        'github': "GitHub: https://github.com/seu-usuario",
+        'project': "Projeto: https://seu-projeto.com",
+        'license': "Licenciado sob MIT",
+        'used_libraries': "Bibliotecas usadas:",
+        'libraries': [
+            "• asyncio (gerenciamento de IO assíncrono)",
+            "• websockets (servidor WebSocket)",
+            "• json (serialização de dados JSON)",
+            "• vgamepad (controle virtual de gamepads)",
+            "• tkinter (interface gráfica)",
+            "• ttkbootstrap (estilos para tkinter)",
+            "• PIL (manipulação de imagens)",
+            "• qrcode (geração de QR codes)"
+        ],
+        'language_button': "Trocar Idioma",
+        'en': "Inglês",
+        'pt': "Português",
+        'text_help': "Caso queira você pode digitar\nmanualmente os valores da porta\ne o ip clicando no botão abaixo",
+        'toggle_button_show': "Mostrar IP e Porta",
+        'toggle_button_hide': "Ocultar IP e Porta",
+        'device_count': "0/8 dispositivos conectados",
+        'active_connections': "Conexões Ativas",
+        'new_feature_1': "Descrição da Funcionalidade 1",
+        'new_feature_2': "Descrição da Funcionalidade 2",
+    }
+}
+
+current_language = 'pt'
+
 def generate_qr_code(ip, port):
     url = f"ws://{ip}:{port}"
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -201,6 +257,37 @@ def generate_qr_code(ip, port):
     img = qr.make_image(fill='black', back_color='white')
     img = img.resize((250, 250))
     return ImageTk.PhotoImage(img)
+
+def change_language():
+    global current_language
+    current_language = 'pt' if current_language == 'en' else 'en'
+    update_ui_texts()
+
+def update_ui_texts():
+    about_button.config(text=translations[current_language]['about_title'])
+    language_button.config(text=translations[current_language]['language_button'])
+    toggle_button.config(text=translations[current_language]['toggle_button_show'] if not ip_port_label.winfo_ismapped() else translations[current_language]['toggle_button_hide'])
+
+    device_count_label.config(text=translations[current_language]['device_count'])
+    connection_label.config(text=translations[current_language]['active_connections'])
+    text_help.config(text=translations[current_language]['text_help'])
+
+
+def update_about_window_texts():
+    about_window.title(translations[current_language]['about_title'])
+    label.config(text=translations[current_language]['app_info'])
+    github_label.config(text=translations[current_language]['github'])
+    project_label.config(text=translations[current_language]['project'])
+    license_info.config(text=translations[current_language]['license'])
+    libraries_info.config(text=translations[current_language]['used_libraries'])
+
+    for widget in about_window.winfo_children():
+        if widget.winfo_name() == "library_label":
+            widget.destroy()
+
+    for lib in translations[current_language]['libraries']:
+        lib_label = ttk.Label(about_window, text=lib, font=("Helvetica", 10), justify='center', name="library_label")
+        lib_label.pack(anchor="center", padx=20)
 
 def toggle_server_info():
     if not ip_port_label.winfo_ismapped():
@@ -216,7 +303,6 @@ async def disconnect_device(uuid):
         await websocket.close()
     
     handle_close(uuid)
-    
     remove_device_from_gui(uuid)
 
 def update_device_count():
@@ -236,7 +322,6 @@ def add_device_to_gui(device_name, user_name):
     device_frame = ttk.Frame(right_frame, name=device_name)
     device_frame.grid(sticky="w", padx=10, pady=5)
 
-    # Aqui usamos o nome do usuário em vez do UUID
     device_label = ttk.Label(device_frame, text=user_name, bootstyle="success", font=("Helvetica", 14), width=20)
     device_label.grid(row=0, column=0, padx=10, pady=5)
 
@@ -249,41 +334,27 @@ def add_device_to_gui(device_name, user_name):
 
     update_device_count()
 
-
-root = ttk.Window(themename="darkly")
-root.title("Gerenciador de Conexões")
-root.geometry("900x550")
-
-
-left_frame = ttk.Frame(root, padding=10)
-left_frame.grid(row=0, column=0, sticky="ns")
-
 def show_about_info():
-    # Criar uma nova janela de nível superior para mostrar as informações
+    global about_window, label, github_label, project_label, license_info, libraries_info
     about_window = tk.Toplevel(root)
-    about_window.title("Sobre")
-    about_window.geometry("400x450")
+    about_window.title(translations[current_language]['about_title'])
+    about_window.geometry("400x500")
     
-    # Nome e versão do projeto
-    label = ttk.Label(about_window, text="Gerenciador de Conexões\nDesenvolvido por [Seu Nome]\nVersão 1.0", font=("Helvetica", 12), justify="center")
+    label = ttk.Label(about_window, text=translations[current_language]['app_info'], font=("Helvetica", 12), justify="center")
     label.pack(pady=10)
 
-    # Link para o perfil do GitHub
-    github_label = ttk.Label(about_window, text="GitHub: https://github.com/seu-usuario", font=("Helvetica", 10), foreground="blue", cursor="hand2")
+    github_label = ttk.Label(about_window, text=translations[current_language]['github'], font=("Helvetica", 10), foreground="blue", cursor="hand2")
     github_label.pack(pady=5)
     github_label.bind("<Button-1>", lambda e: open_url("https://github.com/seu-usuario"))
 
-    # Link para o site do projeto (se houver)
-    project_label = ttk.Label(about_window, text="Projeto: https://seu-projeto.com", font=("Helvetica", 10), foreground="blue", cursor="hand2")
+    project_label = ttk.Label(about_window, text=translations[current_language]['project'], font=("Helvetica", 10), foreground="blue", cursor="hand2")
     project_label.pack(pady=5)
     project_label.bind("<Button-1>", lambda e: open_url("https://seu-projeto.com"))
 
-    # Informações sobre a licença
-    license_info = ttk.Label(about_window, text="Licenciado sob MIT", font=("Helvetica", 10))
+    license_info = ttk.Label(about_window, text=translations[current_language]['license'], font=("Helvetica", 10))
     license_info.pack(pady=5)
 
-    # Bibliotecas usadas no projeto
-    libraries_info = ttk.Label(about_window, text="Bibliotecas usadas:", font=("Helvetica", 10))
+    libraries_info = ttk.Label(about_window, text=translations[current_language]['used_libraries'], font=("Helvetica", 10))
     libraries_info.pack(pady=5)
 
     libs = [
@@ -301,35 +372,43 @@ def show_about_info():
         lib_label = ttk.Label(about_window, text=lib, font=("Helvetica", 10), justify='center')
         lib_label.pack(anchor="center", padx=20)
 
-
 def open_url(url):
-    import webbrowser
     webbrowser.open_new(url)
 
-# Botão "Sobre" que chama a janela de informações
-about_button = ttk.Button(left_frame, text="Sobre", command=show_about_info)
-about_button.grid(row=0, column=0, pady=10)
+root = ttk.Window(themename="darkly")
+root.title("Gerenciador de Conexões")
+root.geometry("900x550")
 
-qr_code_data = "http://example.com"
-qr_img = generate_qr_code(ip_address, port)
-qr_label = ttk.Label(left_frame, image=qr_img)
-qr_label.grid(row=1, column=0, pady=10)
-
-text_help = ttk.Label(left_frame, text="Caso queira você pode digitar\nmanualmente os valores da porta\ne o ip Clicando no botão abaixo", bootstyle="info", font=(10), justify="center")
-text_help.grid(row=2, column=0, pady=5)
-
-toggle_button = ttk.Button(left_frame, text="Mostrar IP e Porta", command=toggle_server_info)
-toggle_button.grid(row=3, column=0, pady=10)
-
-ip_port_label = ttk.Label(left_frame, text=f"IP: {ip_address}\nPorta: {port}", bootstyle="info", font=(20))
+left_frame = ttk.Frame(root, padding=10)
+left_frame.grid(row=0, column=0, sticky="ns")
 
 right_frame = ttk.Frame(root, padding=10)
 right_frame.grid(row=0, column=1, sticky="ns")
 
-device_count_label = ttk.Label(right_frame, text="0/8 dispositivos conectados", font=("Helvetica", 16))
+about_button = ttk.Button(left_frame, text=translations[current_language]['about_title'], command=show_about_info)
+about_button.grid(row=0, column=0, pady=10)
+
+ip_address = "127.0.0.1"
+port = 8080
+qr_img = generate_qr_code(ip_address, port)
+qr_label = ttk.Label(left_frame, image=qr_img)
+qr_label.grid(row=1, column=0, pady=10)
+
+text_help = ttk.Label(left_frame, text=translations[current_language]['text_help'], bootstyle="info", font=(10), justify="center")
+text_help.grid(row=2, column=0, pady=5)
+
+language_button = ttk.Button(left_frame, text=translations[current_language]['language_button'], command=change_language)
+language_button.grid(row=5, column=0, pady=10)
+
+toggle_button = ttk.Button(left_frame, text=translations[current_language]['toggle_button_show'], command=toggle_server_info)
+toggle_button.grid(row=3, column=0, pady=10)
+
+ip_port_label = ttk.Label(left_frame, text=f"IP: {ip_address}\nPorta: {port}", bootstyle="info", font=(20))
+
+device_count_label = ttk.Label(right_frame, text=translations[current_language]['device_count'], font=("Helvetica", 16))
 device_count_label.grid(row=2, column=0, pady=10, padx=100)
 
-connection_label = ttk.Label(right_frame, text="Conexões Ativas", font=("Helvetica", 16))
+connection_label = ttk.Label(right_frame, text=translations[current_language]['active_connections'], font=("Helvetica", 16))
 connection_label.grid(row=1, column=0)
 
 threading.Thread(target=start_websocket_server, daemon=True).start()
