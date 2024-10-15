@@ -357,18 +357,7 @@ def show_about_info():
     libraries_info = ttk.Label(about_window, text=translations[current_language]['used_libraries'], font=("Helvetica", 10))
     libraries_info.pack(pady=5)
 
-    libs = [
-        "• asyncio (gerenciamento de IO assíncrono)",
-        "• websockets (servidor WebSocket)",
-        "• json (serialização de dados JSON)",
-        "• vgamepad (controle virtual de gamepads)",
-        "• tkinter (interface gráfica)",
-        "• ttkbootstrap (estilos para tkinter)",
-        "• PIL (manipulação de imagens)",
-        "• qrcode (geração de QR codes)"
-    ]
-
-    for lib in libs:
+    for lib in translations[current_language]['libraries']:
         lib_label = ttk.Label(about_window, text=lib, font=("Helvetica", 10), justify='center')
         lib_label.pack(anchor="center", padx=20)
 
