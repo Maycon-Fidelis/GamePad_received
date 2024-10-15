@@ -41,47 +41,50 @@ button_map = {
 }
 
 async def handle_message(message, uuid):
-    parsed_message = json.loads(message)
+    parsed_message = json.loads(message)  # Decodificar a mensagem JSON
     user = users[uuid]
     gamepad = gamepads[uuid]
 
-    if parsed_message['type'] == 'control':
-        button_event = parsed_message['message']
-        print(f"Button event: {json.dumps(button_event)}")
-        user['buttonHistory'].append(button_event)
+    # Verificar o tipo de mensagem para distinguir entre controle de botões e joystick
+    if parsed_message.get('type') == 'control':
+        # Processar eventos de controle de botões
+        button_event = parsed_message
+        user['buttonHistory'].append(button_event)  # Armazenar histórico de botões
 
         button = button_event.get('button')
         state = button_event.get('state')
 
-        if button in button_map:
-            if state == 'press':
-                gamepad.press_button(button=button_map[button])
-            elif state == 'release':
-                gamepad.release_button(button=button_map[button])
-        elif button == 'LT':
-            if state == 'press':
-                gamepad.left_trigger(value=255)  # Pressed fully
-            elif state == 'release':
-                gamepad.left_trigger(value=0)    # Released
-        elif button == 'RT':
-            if state == 'press':
-                gamepad.right_trigger(value=255)  # Pressed fully
-            elif state == 'release':
-                gamepad.right_trigger(value=0)    # Released
+        # Mapeamento de ações de botões (press/release)
+        button_actions = {
+            'press': lambda btn: gamepad.press_button(button=button_map[btn]),
+            'release': lambda btn: gamepad.release_button(button=button_map[btn])
+        }
 
-    elif parsed_message['type'] == 'joystick':
-        log_message = parsed_message['message']
-        joystick_data = log_message.get('joystick', {})
-        if 'id' in joystick_data and joystick_data['id'] == 'joystick1':
-            x_value = joystick_data.get('x', 0)
-            y_value = joystick_data.get('y', 0)
+        # Verificar se o botão está no mapeamento e executar a ação correspondente
+        if button in button_map and state in button_actions:
+            button_actions[state](button)
+        # Processar gatilhos analógicos (LT e RT)
+        elif button == 'LT':
+            gamepad.left_trigger(value=255 if state == 'press' else 0)
+        elif button == 'RT':
+            gamepad.right_trigger(value=255 if state == 'press' else 0)
+
+    # Verificar se a mensagem é do tipo 'joystick'
+    elif parsed_message.get('type') == 'joystick':
+        # Processar eventos de controle de joystick
+        x_value = parsed_message.get('x', 0)
+        y_value = parsed_message.get('y', 0)
+        joystick_id = parsed_message.get('id')
+
+        # Verificar qual joystick está sendo controlado e aplicar os valores
+        if joystick_id == 'joystick1':
             gamepad.left_joystick(x_value=x_value, y_value=y_value)
-        elif 'id' in joystick_data and joystick_data['id'] == 'joystick2':
-            x_value = joystick_data.get('x', 0)
-            y_value = joystick_data.get('y', 0)
+        elif joystick_id == 'joystick2':
             gamepad.right_joystick(x_value=x_value, y_value=y_value)
 
+    # Atualizar o estado do gamepad após cada evento
     gamepad.update()
+
 
 async def handle_client(websocket, path):
     global device_indices
@@ -160,7 +163,7 @@ def update_ip_port_label(ip, port):
 
 async def main_websocket():
     global ip_address
-    port = 8082
+    port = 8083
     while True:
         try:
             server = await websockets.serve(handle_client, "0.0.0.0", port)
@@ -249,18 +252,71 @@ def add_device_to_gui(device_name, user_name):
 
 root = ttk.Window(themename="darkly")
 root.title("Gerenciador de Conexões")
-root.geometry("900x500")
+root.geometry("900x550")
+
 
 left_frame = ttk.Frame(root, padding=10)
 left_frame.grid(row=0, column=0, sticky="ns")
 
+def show_about_info():
+    # Criar uma nova janela de nível superior para mostrar as informações
+    about_window = tk.Toplevel(root)
+    about_window.title("Sobre")
+    about_window.geometry("400x450")
+    
+    # Nome e versão do projeto
+    label = ttk.Label(about_window, text="Gerenciador de Conexões\nDesenvolvido por [Seu Nome]\nVersão 1.0", font=("Helvetica", 12), justify="center")
+    label.pack(pady=10)
+
+    # Link para o perfil do GitHub
+    github_label = ttk.Label(about_window, text="GitHub: https://github.com/seu-usuario", font=("Helvetica", 10), foreground="blue", cursor="hand2")
+    github_label.pack(pady=5)
+    github_label.bind("<Button-1>", lambda e: open_url("https://github.com/seu-usuario"))
+
+    # Link para o site do projeto (se houver)
+    project_label = ttk.Label(about_window, text="Projeto: https://seu-projeto.com", font=("Helvetica", 10), foreground="blue", cursor="hand2")
+    project_label.pack(pady=5)
+    project_label.bind("<Button-1>", lambda e: open_url("https://seu-projeto.com"))
+
+    # Informações sobre a licença
+    license_info = ttk.Label(about_window, text="Licenciado sob MIT", font=("Helvetica", 10))
+    license_info.pack(pady=5)
+
+    # Bibliotecas usadas no projeto
+    libraries_info = ttk.Label(about_window, text="Bibliotecas usadas:", font=("Helvetica", 10))
+    libraries_info.pack(pady=5)
+
+    libs = [
+        "• asyncio (gerenciamento de IO assíncrono)",
+        "• websockets (servidor WebSocket)",
+        "• json (serialização de dados JSON)",
+        "• vgamepad (controle virtual de gamepads)",
+        "• tkinter (interface gráfica)",
+        "• ttkbootstrap (estilos para tkinter)",
+        "• PIL (manipulação de imagens)",
+        "• qrcode (geração de QR codes)"
+    ]
+
+    for lib in libs:
+        lib_label = ttk.Label(about_window, text=lib, font=("Helvetica", 10), justify='center')
+        lib_label.pack(anchor="center", padx=20)
+
+
+def open_url(url):
+    import webbrowser
+    webbrowser.open_new(url)
+
+# Botão "Sobre" que chama a janela de informações
+about_button = ttk.Button(left_frame, text="Sobre", command=show_about_info)
+about_button.grid(row=0, column=0, pady=10)
+
 qr_code_data = "http://example.com"
 qr_img = generate_qr_code(ip_address, port)
 qr_label = ttk.Label(left_frame, image=qr_img)
-qr_label.grid(row=0, column=0, pady=10)
+qr_label.grid(row=1, column=0, pady=10)
 
 text_help = ttk.Label(left_frame, text="Caso queira você pode digitar\nmanualmente os valores da porta\ne o ip Clicando no botão abaixo", bootstyle="info", font=(10), justify="center")
-text_help.grid(row=1, column=0, pady=5)
+text_help.grid(row=2, column=0, pady=5)
 
 toggle_button = ttk.Button(left_frame, text="Mostrar IP e Porta", command=toggle_server_info)
 toggle_button.grid(row=3, column=0, pady=10)
