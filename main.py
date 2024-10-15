@@ -206,7 +206,7 @@ translations = {
             "• PIL (image manipulation)",
             "• qrcode (QR code generation)"
         ],
-        'language_button': "Change Language",
+        'language_button': "português",
         'en': "English",
         'pt': "Portuguese",
         'text_help': "If you want, you can manually enter\n the port and IP values\n by clicking the button below",
@@ -234,7 +234,7 @@ translations = {
             "• PIL (manipulação de imagens)",
             "• qrcode (geração de QR codes)"
         ],
-        'language_button': "Trocar Idioma",
+        'language_button': "english",
         'en': "Inglês",
         'pt': "Português",
         'text_help': "Caso queira você pode digitar\nmanualmente os valores da porta\ne o ip clicando no botão abaixo",
@@ -370,29 +370,32 @@ root.geometry("900x550")
 
 left_frame = ttk.Frame(root, padding=10)
 left_frame.grid(row=0, column=0, sticky="ns")
+left_frame.grid_columnconfigure(0, weight=1)
+left_frame.grid_columnconfigure(1, weight=1)
 
 right_frame = ttk.Frame(root, padding=10)
 right_frame.grid(row=0, column=1, sticky="ns")
 
-about_button = ttk.Button(left_frame, text=translations[current_language]['about_title'], command=show_about_info)
-about_button.grid(row=0, column=0, pady=10)
-
 ip_address = "127.0.0.1"
 port = 8080
 qr_img = generate_qr_code(ip_address, port)
-qr_label = ttk.Label(left_frame, image=qr_img)
-qr_label.grid(row=1, column=0, pady=10)
 
-text_help = ttk.Label(left_frame, text=translations[current_language]['text_help'], bootstyle="info", font=(10), justify="center")
-text_help.grid(row=2, column=0, pady=5)
+about_button = ttk.Button(left_frame, text=translations[current_language]['about_title'], command=show_about_info)
+about_button.grid(row=0, column=0, pady=10)
+
+qr_label = ttk.Label(left_frame, image=qr_img)
+qr_label.grid(row=1, column=0, columnspan=1, pady=10, sticky="ew")
 
 language_button = ttk.Button(left_frame, text=translations[current_language]['language_button'], command=change_language)
-language_button.grid(row=5, column=0, pady=10)
+language_button.grid(row=2, column=0, pady=10)
+
+text_help = ttk.Label(left_frame, text=translations[current_language]['text_help'], bootstyle="info", font=(10), justify="center")
+text_help.grid(row=3, column=0, pady=0)
 
 toggle_button = ttk.Button(left_frame, text=translations[current_language]['toggle_button_show'], command=toggle_server_info)
-toggle_button.grid(row=3, column=0, pady=10)
+toggle_button.grid(row=4, column=0, pady=10)
 
-ip_port_label = ttk.Label(left_frame, text=f"IP: {ip_address}\nPorta: {port}", bootstyle="info", font=(20))
+ip_port_label = ttk.Label(left_frame, text=f"IP: {ip_address}\nPort: {port}", bootstyle="info", font=(20))
 
 device_count_label = ttk.Label(right_frame, text=translations[current_language]['device_count'], font=("Helvetica", 16))
 device_count_label.grid(row=2, column=0, pady=10, padx=100)
