@@ -366,7 +366,7 @@ def open_url(url):
 
 root = ttk.Window(themename="darkly")
 root.title("Gerenciador de Conexões")
-root.geometry("900x550")
+root.geometry("900x600")
 
 left_frame = ttk.Frame(root, padding=10)
 left_frame.grid(row=0, column=0, sticky="ns")
@@ -393,7 +393,7 @@ text_help = ttk.Label(left_frame, text=translations[current_language]['text_help
 text_help.grid(row=3, column=0, pady=0)
 
 toggle_button = ttk.Button(left_frame, text=translations[current_language]['toggle_button_show'], command=toggle_server_info)
-toggle_button.grid(row=4, column=0, pady=10)
+toggle_button.grid(row=5, column=0, pady=10)
 
 ip_port_label = ttk.Label(left_frame, text=f"IP: {ip_address}\nPort: {port}", bootstyle="info", font=(20))
 
