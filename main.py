@@ -11,6 +11,8 @@ from PIL import Image, ImageTk
 import qrcode
 import threading
 import webbrowser
+import time
+from collections import deque
 
 connections = {}
 users = {}
@@ -41,46 +43,91 @@ button_map = {
     'LS': vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_THUMB
 }
 
-async def handle_message(message, uuid):
+latencies = []
+
+latencies = deque(maxlen=100)
+latency_lock = asyncio.Lock()  # Evita concorrência
+
+import json
+import time
+import asyncio
+
+latencies = []
+latency_lock = asyncio.Lock()
+
+request_count = 0
+high_latency_count = 0
+latency_threshold = 0.1  # 100 ms
+latencies = []
+latency_lock = asyncio.Lock()
+
+async def handle_message(message, uuid, websocket):
+    global request_count, high_latency_count
+    
     parsed_message = json.loads(message)
     user = users[uuid]
     gamepad = gamepads[uuid]
-
-    if parsed_message.get('type') == 'control':
-        button_event = parsed_message
-        user['buttonHistory'].append(button_event)
-
-        button = button_event.get('button')
-        state = button_event.get('state')
-
-        button_actions = {
-            'press': lambda btn: gamepad.press_button(button=button_map[btn]),
-            'release': lambda btn: gamepad.release_button(button=button_map[btn])
-        }
-
-        if button in button_map and state in button_actions:
-            button_actions[state](button)
-
+    msg_type = parsed_message.get('type')
+    
+    if msg_type in ['c', 'j']:
+        client_timestamp = parsed_message.get("client_timestamp", 0)
+        server_timestamp = time.time()
+        
+        # Calcular latência
+        latency = server_timestamp - (client_timestamp / 1000)
+        
+        async with latency_lock:
+            latencies.append(latency)
+            if len(latencies) > 100:  # Limitar o tamanho do buffer
+                latencies.pop(0)
+            
+            min_latency = min(latencies)
+            max_latency = max(latencies)
+            avg_latency = sum(latencies) / len(latencies)
+            
+            request_count += 1  # Incrementa o contador de requisições
+            if latency > latency_threshold:
+                high_latency_count += 1  # Contador de latências altas
+        
+        # Adicionar informações ao JSON
+        parsed_message.update({
+            "server_timestamp": server_timestamp,
+            "latency": latency,
+            "min_latency": min_latency,
+            "max_latency": max_latency,
+            "avg_latency": avg_latency,
+            "request_count": request_count,
+            "high_latency_count": high_latency_count
+        })
+        
+        await websocket.send(json.dumps(parsed_message))
+    
+    if msg_type == 'c':
+        button = parsed_message.get('b')
+        state = parsed_message.get('s')
+        user['buttonHistory'].append(parsed_message)
+        
+        if button in button_map:
+            if state == 'p':
+                gamepad.press_button(button=button_map[button])
+            elif state == 'r':
+                gamepad.release_button(button=button_map[button])
         elif button == 'LT':
-            gamepad.left_trigger(value=255 if state == 'press' else 0)
+            gamepad.left_trigger(value=255 if state == 'p' else 0)
         elif button == 'RT':
-            gamepad.right_trigger(value=255 if state == 'press' else 0)
-
-
-    elif parsed_message.get('type') == 'joystick':
-
+            gamepad.right_trigger(value=255 if state == 'p' else 0)
+    
+    elif msg_type == 'j':
+        joystick_id = parsed_message.get('id')
         x_value = parsed_message.get('x', 0)
         y_value = parsed_message.get('y', 0)
-        joystick_id = parsed_message.get('id')
-
-
-        if joystick_id == 'joystick1':
+        
+        if joystick_id == '1':
             gamepad.left_joystick(x_value=x_value, y_value=y_value)
-        elif joystick_id == 'joystick2':
+        elif joystick_id == '2':
             gamepad.right_joystick(x_value=x_value, y_value=y_value)
-
+    
     gamepad.update()
-
 
 async def handle_client(websocket, path):
     global device_indices
@@ -126,7 +173,7 @@ async def handle_client(websocket, path):
         print(f"User {username} connected with UUID: {uuid_str}")
 
         async for message in websocket:
-            await handle_message(message, uuid_str)
+            await handle_message(message, uuid_str, websocket)
 
     finally:
         handle_close(uuid_str)
