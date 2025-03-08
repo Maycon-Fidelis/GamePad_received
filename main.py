@@ -13,6 +13,7 @@ import threading
 import webbrowser
 import time
 from collections import deque
+import socket
 
 connections = {}
 users = {}
@@ -61,8 +62,18 @@ latency_threshold = 0.1  # 100 ms
 latencies = []
 latency_lock = asyncio.Lock()
 
+# Variável de controle para ignorar os dois primeiros valores
+message_count = 0
+
 async def handle_message(message, uuid, websocket):
-    global request_count, high_latency_count
+    global request_count, high_latency_count, message_count
+    
+    # Incrementa o contador de mensagens
+    message_count += 1
+    
+    # Ignorar as duas primeiras mensagens
+    if message_count <= 2:
+        return
     
     parsed_message = json.loads(message)
     user = users[uuid]
@@ -225,12 +236,20 @@ async def main_websocket():
     await server.wait_closed()
 
 
+import socket
+
 def get_local_ip_address():
-    interfaces = socket.getaddrinfo(socket.gethostname(), None)
-    for interface in interfaces:
-        if interface[0] == socket.AF_INET:
-            return interface[4][0]
-    return '127.0.0.1'
+    """ Obtém o IP correto, priorizando redes locais como hotspot """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Conectar a um IP externo para descobrir a interface correta (não envia dados)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
 
 def start_websocket_server():
     asyncio.run(main_websocket())
