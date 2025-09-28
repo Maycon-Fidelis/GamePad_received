@@ -11,8 +11,6 @@ from PIL import Image, ImageTk
 import qrcode
 import threading
 import webbrowser
-import time
-from collections import deque
 import socket
 
 connections = {}
@@ -44,23 +42,9 @@ button_map = {
     'LS': vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_THUMB
 }
 
-latencies = []
-
-latencies = deque(maxlen=100)
-latency_lock = asyncio.Lock()  # Evita concorrência
-
 import json
 import time
 import asyncio
-
-latencies = []
-latency_lock = asyncio.Lock()
-
-request_count = 0
-high_latency_count = 0
-latency_threshold = 0.1  # 100 ms
-latencies = []
-latency_lock = asyncio.Lock()
 
 # Variável de controle para ignorar os dois primeiros valores
 message_count = 0
@@ -68,50 +52,20 @@ message_count = 0
 async def handle_message(message, uuid, websocket):
     global request_count, high_latency_count, message_count
     
-    # Incrementa o contador de mensagens
-    message_count += 1
-    
-    # Ignorar as duas primeiras mensagens
-    if message_count <= 2:
-        return
-    
     parsed_message = json.loads(message)
     user = users[uuid]
     gamepad = gamepads[uuid]
     msg_type = parsed_message.get('type')
     
-    if msg_type in ['c', 'j']:
-        client_timestamp = parsed_message.get("client_timestamp", 0)
-        server_timestamp = time.time()
-        
-        # Calcular latência
-        latency = server_timestamp - (client_timestamp / 1000)
-        
-        async with latency_lock:
-            latencies.append(latency)
-            if len(latencies) > 100:  # Limitar o tamanho do buffer
-                latencies.pop(0)
-            
-            min_latency = min(latencies)
-            max_latency = max(latencies)
-            avg_latency = sum(latencies) / len(latencies)
-            
-            request_count += 1  # Incrementa o contador de requisições
-            if latency > latency_threshold:
-                high_latency_count += 1  # Contador de latências altas
-        
-        # Adicionar informações ao JSON
-        parsed_message.update({
-            "server_timestamp": server_timestamp,
-            "latency": latency,
-            "min_latency": min_latency,
-            "max_latency": max_latency,
-            "avg_latency": avg_latency,
-            "request_count": request_count,
-            "high_latency_count": high_latency_count
-        })
-        
-        await websocket.send(json.dumps(parsed_message))
+    # Formatar a mensagem no padrão que você deseja
+    log_message = {
+        "user_id": uuid,
+        "command": msg_type,
+        "parameters": parsed_message.get("state", {})
+    }
+
+    # Imprimir no terminal
+    print(json.dumps(log_message, indent=4))
     
     if msg_type == 'c':
         button = parsed_message.get('b')
@@ -220,7 +174,7 @@ async def main_websocket():
     port = 8083
     while True:
         try:
-            server = await websockets.serve(handle_client, "0.0.0.0", port)
+            server = await websockets.serve(lambda ws, path: handle_client(ws, path), "0.0.0.0", port)
             ip_address = get_local_ip_address()
             print(f"WebSocket server is running at ws://{ip_address}:{port}")
             
