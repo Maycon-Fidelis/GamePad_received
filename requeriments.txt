@@ -1,0 +1,5 @@
+websockets
+vgamepad
+ttkbootstrap
+Pillow
+qrcode

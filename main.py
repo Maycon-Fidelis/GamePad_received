@@ -12,6 +12,7 @@ import qrcode
 import threading
 import webbrowser
 import socket
+import ssl
 
 connections = {}
 users = {}
